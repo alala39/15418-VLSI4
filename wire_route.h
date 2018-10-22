@@ -20,9 +20,10 @@ void compute(int procID, int nproc, char* inputFilename, double prob, int numIte
 wire_t *readInput(char* inputFilename,int procID,int nProcs,int *numRows,int *numCols,int *delta,int *wiresPerProc);
 
 // Write cost array file based on input filename
-void writeCost(char* inputFilename, int nproc);
+void writeCost(char* inputFilename, int nproc,int numRows,int numCols,int procID);
 
 // Write wire output file based on input filename
-void writeOutput(char* inputFilename, int nproc);
+void writeOutput(char* inputFilename, int nproc,int numRows,int numCols,int delta,int numWires,
+        wire_t *wireArray);
 
 #endif // _WIRE_ROUTE_H
