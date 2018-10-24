@@ -17,22 +17,8 @@ int *globalWires;
 
 int *costs;
 
-// Initialize problem
-// Init cost array in root and broadcast to other processes
-void init(int numRows, int numCols)
-{
-    //TODO Implement code here
-    costs = calloc(numRows*numCols,sizeof(int));
-    //int *costs = calloc(numRows*numCols,sizeof(int));
-    //MPI_Bcast(costs,numRows*numCols,MPI_INT,root,MPI_COMM_WORLD);
-    //Initializes the cost array. Need to redo this as it creates one for each process.
-    //Just call this if the procID is 0 (root)
-    //return costs;
-}
-
 // Initialize a given wire
-static inline void initWire(int wireIndex, int x1, int y1, int x2, int y2,wire_t *wireArray)
-{
+static inline void initWire(int wireIndex, int x1, int y1, int x2, int y2,wire_t *wireArray){
     //TODO Implement code here
     //wireArray[wireIndex] = {x1,y1,y1,y2,undef,undef,undef,undef};
     wireArray[wireIndex].x1 = x1;
@@ -44,45 +30,14 @@ static inline void initWire(int wireIndex, int x1, int y1, int x2, int y2,wire_t
     wireArray[wireIndex].b2x = undef;
     wireArray[wireIndex].b2y = undef;
 }
-
-// Return number of rows
-static inline int getNumRows()
-{
-    //TODO Implement code here
-    return 0;
-}
-
-// Return number of cols
-static inline int getNumCols()
-{
-    //TODO Implement code here
-    return 0;
-}
-
-// Return delta
-static inline int getDelta()
-{
-	//TODO Implement code here
-    return 0;
-}
-
-// Return number of wires
-static inline int getNumWires()
-{
-    //TODO Implement code here
-    return 0;
-}
-
 // Get cost array entry
-static inline int getCost(int row, int col,int numCols)
-{
+static inline int getCost(int row, int col,int numCols){
     //TODO Implement code here
     return costs[row * numCols + col];
 }
 
 // Get a wire placement. Returns number of points (should be 2-4 for 0-2 bends).
-static inline int getWire(int wireIndex, int* x1, int* y1, int* x2, int* y2, int* x3, int* y3, int* x4, int* y4,wire_t *wireArray)
-{
+static inline int getWire(int wireIndex, int* x1, int* y1, int* x2, int* y2, int* x3, int* y3, int* x4, int* y4,wire_t *wireArray) {
     //TODO Implement code here
     *x1 = wireArray[wireIndex].x1;
     *y1 = wireArray[wireIndex].y1;
@@ -106,8 +61,7 @@ static inline int getWire(int wireIndex, int* x1, int* y1, int* x2, int* y2, int
     }
 }
 
-void removeEqualXWire(int x, int y1,int y2,int *costs,int numRows,int numCols,int by)
-{
+void removeEqualXWire(int x, int y1,int y2,int *costs,int numRows,int numCols,int by) {
     int start = min(y1,y2);
     int end = max(y1,y2);
     while(start <= end)
@@ -120,8 +74,7 @@ void removeEqualXWire(int x, int y1,int y2,int *costs,int numRows,int numCols,in
     }
 }
 
-void removeEqualYWire(int x1,int x2,int y,int *costs,int numRows,int numCols,int bx)
-{
+void removeEqualYWire(int x1,int x2,int y,int *costs,int numRows,int numCols,int bx) {
     int start = min(x1,x2);
     int end = max(x1,x2);
     while(start <= end)
@@ -134,8 +87,7 @@ void removeEqualYWire(int x1,int x2,int y,int *costs,int numRows,int numCols,int
     }
 }
 
-void placeXWire(int x,int y1,int y2,int *costs,int numRows,int numCols)
-{
+void placeXWire(int x,int y1,int y2,int *costs,int numRows,int numCols) {
     int start = min(y1,y2);
     int end = max(y1,y2);
     while(start<=end)
@@ -145,8 +97,7 @@ void placeXWire(int x,int y1,int y2,int *costs,int numRows,int numCols)
     }
 }
 
-void placeYWire(int x1,int x2,int y,int *costs,int numRows,int numCols)
-{
+void placeYWire(int x1,int x2,int y,int *costs,int numRows,int numCols) {
     int start = min(x1,x2);
     int end = max(x1,x2);
     while(start <= end)
@@ -156,8 +107,7 @@ void placeYWire(int x1,int x2,int y,int *costs,int numRows,int numCols)
     }
 }
 
-void placeWire(wire_t *wire,int *costs,int numRows,int numCols)
-{
+void placeWire(wire_t *wire,int *costs,int numRows,int numCols){
     int x1 = wire->x1;
     int y1 = wire->y1;
     int x2 = wire->x2;
@@ -235,8 +185,7 @@ void placeWire(wire_t *wire,int *costs,int numRows,int numCols)
     }
 }
 
-int costPerLine(int x1,int x2, int y1, int y2,int *costs,int numRows,int numCols)
-{
+int costPerLine(int x1,int x2, int y1, int y2,int *costs,int numRows,int numCols){
     int result = 0;
     if(x1==x2)
     {
@@ -268,8 +217,7 @@ int costPerLine(int x1,int x2, int y1, int y2,int *costs,int numRows,int numCols
     return result;
 }
 
-int costEqualX(int x,int y1,int y2,int *costs,int numRows,int numCols,int delta,wire_t *wire)
-{
+int costEqualX(int x,int y1,int y2,int *costs,int numRows,int numCols,int delta,wire_t *wire){
     int result = 0;
     int start = min(y1,y2);
     int end = max(y1,y2);
@@ -287,17 +235,15 @@ int costEqualX(int x,int y1,int y2,int *costs,int numRows,int numCols,int delta,
         {
             continue;
         }
-        int res1 = max(costPerLine(x,x+i,start,start,costs,numRows,numCols),max(costPerLine(x+i,x+i,start,end,costs,numRows,numCols),costPerLine(x+i,x,end,end,costs,numRows,numCols)));
-        int res2 = max(costPerLine(x,x-i,start,start,costs,numRows,numCols),max(costPerLine(x-i,x-i,start,end,costs,numRows,numCols),costPerLine(x-i,x,end,end,costs,numRows,numCols)));
+        int res1 = max(costPerLine(x,x+i,start,start,costs,numRows,numCols),
+                   max(costPerLine(x+i,x+i,start,end,costs,numRows,numCols),
+                       costPerLine(x+i,x,end,end,costs,numRows,numCols)));
+        int res2 = max(costPerLine(x,x-i,start,start,costs,numRows,numCols),
+                   max(costPerLine(x-i,x-i,start,end,costs,numRows,numCols),
+                       costPerLine(x-i,x,end,end,costs,numRows,numCols)));
+
         result = min(result,min(res1,res2));
-        if(y1==46 && x+i==46)
-        {
-            //printf("This is wrong\n");
-        }
-        else if(y1==46 && x-i==46)
-        {
-            //printf("This is also wrong\n");
-        }
+        
         if(result==res1 && (result<=curMin || curMin==-1))
         {
             wire_t w = {x,y1,x,y2,x+i,y1,x+i,y2};
@@ -318,8 +264,7 @@ int costEqualX(int x,int y1,int y2,int *costs,int numRows,int numCols,int delta,
     return curMin;
 }
 
-int costEqualY(int x1,int x2,int y,int *costs,int numRows,int numCols,int delta,wire_t *wire)
-{
+int costEqualY(int x1,int x2,int y,int *costs,int numRows,int numCols,int delta,wire_t *wire){
     int result = 0;
     int start = min(x1,x2);
     int end = max(x1,x2);
@@ -337,13 +282,15 @@ int costEqualY(int x1,int x2,int y,int *costs,int numRows,int numCols,int delta,
         {
             continue;
         }
-        int res1 = max(costPerLine(start,start,y,y+i,costs,numRows,numCols),max(costPerLine(start,end,y+i,y+i,costs,numRows,numCols),costPerLine(end,end,y+i,y,costs,numRows,numCols)));
-        int res2 = max(costPerLine(start,start,y,y-i,costs,numRows,numCols),max(costPerLine(start,end,y-i,y-i,costs,numRows,numCols),costPerLine(end,end,y-i,y,costs,numRows,numCols)));
+        int res1 = max(costPerLine(start,start,y,y+i,costs,numRows,numCols),
+                   max(costPerLine(start,end,y+i,y+i,costs,numRows,numCols),
+                       costPerLine(end,end,y+i,y,costs,numRows,numCols)));
+        int res2 = max(costPerLine(start,start,y,y-i,costs,numRows,numCols),
+                   max(costPerLine(start,end,y-i,y-i,costs,numRows,numCols),
+                       costPerLine(end,end,y-i,y,costs,numRows,numCols)));
+
         result = min(result,min(res1,res2));
-        if(y==46 && x1==46)
-        {
-            //printf("This is not the right place\n");
-        }
+        
         if(result==res1 && (result<=curMin || curMin==-1))
         {
             wire_t w = {x1,y,x2,y,x1,y+i,x2,y+i};
@@ -364,8 +311,7 @@ int costEqualY(int x1,int x2,int y,int *costs,int numRows,int numCols,int delta,
     return curMin;
 }
 
-int checkAllHorizontal(int x1,int x2,int y1,int y2,int *costs,int numRows,int numCols,int delta,wire_t *wire)
-{
+int checkAllHorizontal(int x1,int x2,int y1,int y2,int *costs,int numRows,int numCols,int delta,wire_t *wire){
     int startX = min(x1,x2);
     int endX = max(x1,x2);
     int lowerBound = startX - (delta/2);
@@ -390,11 +336,9 @@ int checkAllHorizontal(int x1,int x2,int y1,int y2,int *costs,int numRows,int nu
         {
             continue;
         }
-        int rec = max(costPerLine(startX,i,startY,startY,costs,numRows,numCols),max(costPerLine(i,i,startY,endY,costs,numRows,numCols),costPerLine(i,endX,endY,endY,costs,numRows,numCols)));
-        if(startY==46 && i==46)
-        {
-            //printf("This is not the right place please do not\n");
-        }
+        int rec = max(costPerLine(startX,i,startY,startY,costs,numRows,numCols),
+                  max(costPerLine(i,i,startY,endY,costs,numRows,numCols),costPerLine(i,endX,endY,endY,costs,numRows,numCols)));
+        
         if(rec<=curMin || curMin==-1)
         {
             if(i!=startX && i!=endX)
@@ -420,8 +364,7 @@ int checkAllHorizontal(int x1,int x2,int y1,int y2,int *costs,int numRows,int nu
     return curMin;
 }
 
-int checkAllVertical(int x1,int x2,int y1,int y2,int *costs, int numRows,int numCols,int delta,wire_t *wire)
-{
+int checkAllVertical(int x1,int x2,int y1,int y2,int *costs, int numRows,int numCols,int delta,wire_t *wire) {
     int startY = min(y1,y2);
     int endY = max(y1,y2);
     int lowerBound = startY - (delta/2);
@@ -447,10 +390,7 @@ int checkAllVertical(int x1,int x2,int y1,int y2,int *costs, int numRows,int num
             continue;
         }
         int rec = max(costPerLine(startX,startX,startY,i,costs,numRows,numCols),max(costPerLine(startX,endX,i,i,costs,numRows,numCols),costPerLine(endX,endX,i,endY,costs,numRows,numCols)));
-        if(startY==46 && startX==46)
-        {
-            //printf("Please not here\n");
-        }
+        
         if(rec<=curMin || curMin==-1)
         {
             if(i!=startY && i!=endY)
@@ -475,81 +415,27 @@ int checkAllVertical(int x1,int x2,int y1,int y2,int *costs, int numRows,int num
     }
     return curMin;
 }
+//defining a new type: the type MPI_User_function is a type for pointer to functions reciving two void*, one int* and one MPI_Database*
+typedef void (MPI_User_function)( void *invec, void *inoutvec, int *len, 
+                                                MPI_Datatype *datatype);
 
-void mergeCost(int *aggCost,int *newCost,int numRows,int numCols)
-{
-    for(size_t i = 0;i<numRows;i++)
+void mergeCost(void *invec, void *inoutvec, int* len, MPI_Datatype* datatype){
+    int* aggCost = (int*) invec;
+    int* newCost = (int*) inoutvec;
+    for(size_t i = 0; i< *len; i++)
     {
-        for(size_t j = 0;j<numCols;j++)
-        {
-            //printf("MERGE THOSE COSTS\n");
-            aggCost[i * numCols + j]+=newCost[i * numCols + j];
-        }
+           *(aggCost + i) += *(newCost + i);
     }
     //This seqential and is super slow
 }
 
 //The function below will be called after each iteration. All non root nodes will send cost array to root node who will consolidate arrays into one.
-void combineCostArrays(int procID,int *costs,int numRows,int numCols,int nproc)
-{
-    if(procID!=root)
-    {
-        MPI_Send(costs,numRows * numCols,MPI_INT,root,tag,MPI_COMM_WORLD);
-    }
-    else
-    {
-        MPI_Status status;
-        int *nodeCost = calloc(numRows * numCols,sizeof(int));
-        for(size_t node = 1;node<nproc;node++)
-        {
-            //TODO NEED TO COMBINE COST ARRAYS HERE
-            MPI_Recv(nodeCost,numRows * numCols,MPI_INT,node,tag,MPI_COMM_WORLD,&status);
-            mergeCost(costs,nodeCost,numRows,numCols);  //Merges the cost arrays of the node
-            //and the root
-            //Tells node that the root received the data
-        }
-    }
-    MPI_Bcast(costs,numRows * numCols,MPI_INT,root,MPI_COMM_WORLD);
-    //The line above broadcasts the udpated cost array to each node
-}
 
-
-//TODO NEED TO WRITE FUNCTION THAT COMBINES COST ARRAYS FOR EACH NODE AT THE ROOT NODE
-//NODES WILL BROADCAST THEIR COST ARRAYS AFTER EACH ITERATION TO BEGIN WITH
-
-// Perform computation, including reading/writing output files
-void compute(int procID, int nproc, char* inputFilename, double prob, int numIterations)
-{
-    int numRows;
-    int numCols;
-    int delta;
-    int wiresPerProc;
-    int numWires;
-    int curCostWireH;
-    int curCostWireV;
-
-    MPI_Datatype wireMPI;
-    MPI_Type_contiguous(8,MPI_INT,&wireMPI);
-    MPI_Type_commit(&wireMPI);
-
-    wire_t *wireArray = NULL;
-    if(procID==root)
-    {
-        wireArray = readInput(inputFilename,procID,nproc,&numRows,&numCols,&delta,&wiresPerProc,&numWires);
-    }
-    wire_t *wireSubArray = calloc(wiresPerProc,sizeof(wire_t));
-    MPI_Scatter(wireArray,wiresPerProc,wireMPI,wireSubArray,wiresPerProc,wireMPI,root,MPI_COMM_WORLD);  //Root sends data to other nodes using scatter
-    init(numRows,numCols);
-    //TODO Implement code here
-    //TODO Decide which processors should be reading/writing files
-
-    for(int iter = 0;iter<numIterations;iter++)
-    {
-        double probVal = ((double) rand() / (RAND_MAX));
-        if(probVal > 1-prob)
-        {
-            continue;
-        }
+void compute_aux (wire_t* wireSubArray, int wiresPerProc, int numRows, int numCols, int delta, double prob) {
+    double probVal = ((double) rand() / (RAND_MAX));
+    int curCostWireH = 0;
+    int curCostWireV = 0;
+    if(probVal > 1-prob) return;
         //Search time
         for(int i = 0;i<wiresPerProc;i++)
         {
@@ -636,12 +522,94 @@ void compute(int procID, int nproc, char* inputFilename, double prob, int numIte
                 }
             }
         }
-        combineCostArrays(procID,costs,numRows,numCols,nproc);
-        //Communicating the info to the root so the root can merge arrays
+}
+
+//TODO NEED TO WRITE FUNCTION THAT COMBINES COST ARRAYS FOR EACH NODE AT THE ROOT NODE
+//NODES WILL BROADCAST THEIR COST ARRAYS AFTER EACH ITERATION TO BEGIN WITH
+
+// Perform computation, including reading/writing output files
+void compute(int procID, int nproc, char* inputFilename, double prob, int numIterations)
+{
+    int numRows = 0;
+    int numCols = 0;
+    int delta = 0;
+    int numWires = 0;
+
+    /* create a wire type in MPI */
+    MPI_Datatype wireMPI;
+    MPI_Type_contiguous(8,MPI_INT,&wireMPI);
+    MPI_Type_commit(&wireMPI);
+
+    /* create a + operator over array in MPI */
+    MPI_Op array_addition_operator; 
+    MPI_Op_create(mergeCost, 1, &array_addition_operator); 
+
+
+    wire_t *wireArray = NULL;
+    
+    if(procID==root)
+        wireArray = readInput(inputFilename,procID,nproc,&numRows,&numCols,&delta,&numWires);
+
+    MPI_Barrier(MPI_COMM_WORLD);
+
+    MPI_Bcast (&numWires, 1, MPI_INT, root, MPI_COMM_WORLD);
+    MPI_Bcast (&numRows, 1, MPI_INT, root, MPI_COMM_WORLD);
+    MPI_Bcast (&numCols, 1, MPI_INT, root, MPI_COMM_WORLD);
+    MPI_Bcast (&delta, 1, MPI_INT, root, MPI_COMM_WORLD);
+
+    int len = numRows * numCols;
+
+    int rem = numWires%nproc; // elements remaining after division among processes
+    int sum = 0;
+
+    int *sendcounts = malloc(sizeof(int)*nproc);
+    if (sendcounts == NULL) {
+        printf("bad alloc\n");
+        exit(1);
+    }
+
+    int *displs = malloc(sizeof(int)*nproc);
+    if (displs == NULL) {
+        printf("bad alloc\n");
+        exit(1);
+    }
+
+    // calculate send counts and displacements
+    for (int i = 0; i < nproc; i++) {
+        sendcounts[i] = numWires/nproc;
+        if (rem > 0) {
+            sendcounts[i]++;
+            rem--;
+        }
+
+        displs[i] = sum;
+        sum += sendcounts[i];
+    }
+    int wiresPerProc = sendcounts[procID];
+
+    wire_t* wireSubArray = malloc(wiresPerProc * sizeof(wire_t));
+    if (wireSubArray == NULL) {
+        printf("bad alloc\n");
+        exit(1);
+    }
+
+    MPI_Barrier(MPI_COMM_WORLD);
+    MPI_Scatterv(wireArray, sendcounts, displs, wireMPI, wireSubArray, wiresPerProc, wireMPI, root, MPI_COMM_WORLD);  //Root sends data to other nodes using scatter
+    costs = calloc(numRows*numCols, sizeof(int));   
+    //TODO Implement code here
+    //TODO Decide which processors should be reading/writing files
+    for(int iter = 0; iter<numIterations; iter++)
+    {
+        compute_aux (wireSubArray, wiresPerProc, numRows, numCols, delta, prob);
+        int* temp = malloc (len * sizeof(int));
+        memcpy(temp, costs, len * sizeof(int));
+        MPI_Barrier(MPI_COMM_WORLD);
+        MPI_Allreduce(temp, costs, len, MPI_INT, array_addition_operator, MPI_COMM_WORLD);
+        free(temp);
     }
     //TODO NEED TO MERGE WIRE ARRAYS SO THAT THE ROOT CAN WRITE TO OUTPUT
     //COMBINEWIREARRAY
-    MPI_Gather(wireSubArray,wiresPerProc,wireMPI,wireArray,wiresPerProc,wireMPI,root,MPI_COMM_WORLD);
+    MPI_Gatherv(wireSubArray,sendcounts[procID],wireMPI,wireArray,sendcounts, displs, wireMPI, root, MPI_COMM_WORLD);
 
     if(procID==root)  //Root has the cost and wire array so it writes out
     {
@@ -651,7 +619,7 @@ void compute(int procID, int nproc, char* inputFilename, double prob, int numIte
 }
 
 // Read input file
-wire_t *readInput(char* inputFilename,int procID,int nProcs,int *numRows,int *numCols,int *delta,int *wiresPerProc,int *numWires)
+wire_t *readInput(char* inputFilename,int procID,int nProcs,int *numRows,int *numCols,int *delta,int *numWires)
 {
     FILE* fp = fopen(inputFilename, "r");
     //int numRows;
@@ -692,7 +660,6 @@ wire_t *readInput(char* inputFilename,int procID,int nProcs,int *numRows,int *nu
 
     //The above code creates a wire struct type for MPI
 
-    *wiresPerProc = (*numWires + nProcs - 1)/nProcs;
     wire_t *wireArray = calloc(*numWires,sizeof(wire_t));
     for(int i = 0;i<(*numWires);i++)
     {
@@ -781,11 +748,11 @@ void writeOutput(char* inputFilename, int nproc,int numRows,int numCols,int delt
                 break;
 
             case 3:
-                fprintf(fp, "%d %d %d %d %d %d\n", x1, y1, x2, y2, x3, y3);
+                fprintf(fp, "%d %d %d %d %d %d\n", x1, y1, x3, y3, x2, y2);
                 break;
 
             case 4:
-                fprintf(fp, "%d %d %d %d %d %d %d %d\n", x1, y1, x2, y2, x3, y3, x4, y4);
+                fprintf(fp, "%d %d %d %d %d %d %d %d\n", x1, y1, x3, y3, x4, y4, x2, y2);
                 break;
 
             default:
