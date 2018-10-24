@@ -17,10 +17,10 @@ typedef struct wire_t{
 void compute(int procID, int nproc, char* inputFilename, double prob, int numIterations);
 
 // Read input file
-wire_t *readInput(char* inputFilename,int procID,int nProcs,int *numRows,int *numCols,int *delta,int *wiresPerProc);
+wire_t *readInput(char* inputFilename,int procID,int nProcs,int *numRows,int *numCols,int *delta,int *wiresPerProc,int *numWires);
 
 // Write cost array file based on input filename
-void writeCost(char* inputFilename, int nproc,int numRows,int numCols,int procID);
+void writeCost(char* inputFilename, int nproc,int numRows,int numCols);
 
 // Write wire output file based on input filename
 void writeOutput(char* inputFilename, int nproc,int numRows,int numCols,int delta,int numWires,
