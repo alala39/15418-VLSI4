@@ -13,17 +13,21 @@ inline int max (int a, int b){return a >= b ? a : b;}
 
 inline int min (int a, int b){return a <= b ? a : b;}
 
+int *globalWires;
+
+int *costs;
+
 // Initialize problem
 // Init cost array in root and broadcast to other processes
-int *init(int numRows, int numCols)
+void init(int numRows, int numCols)
 {
     //TODO Implement code here
-    int *costs = calloc(numRows*numCols,sizeof(int));
+    costs = calloc(numRows*numCols,sizeof(int));
     //int *costs = calloc(numRows*numCols,sizeof(int));
     //MPI_Bcast(costs,numRows*numCols,MPI_INT,root,MPI_COMM_WORLD);
     //Initializes the cost array. Need to redo this as it creates one for each process.
     //Just call this if the procID is 0 (root)
-    return costs;
+    //return costs;
 }
 
 // Initialize a given wire
@@ -70,10 +74,10 @@ static inline int getNumWires()
 }
 
 // Get cost array entry
-static inline int getCost(int row, int col)
+static inline int getCost(int row, int col,int numCols)
 {
     //TODO Implement code here
-    return 0;
+    return costs[row * numCols + col];
 }
 
 // Get a wire placement. Returns number of points (should be 2-4 for 0-2 bends).
@@ -288,11 +292,11 @@ int costEqualX(int x,int y1,int y2,int *costs,int numRows,int numCols,int delta,
         result = min(result,min(res1,res2));
         if(y1==46 && x+i==46)
         {
-            printf("This is wrong\n");
+            //printf("This is wrong\n");
         }
         else if(y1==46 && x-i==46)
         {
-            printf("This is also wrong\n");
+            //printf("This is also wrong\n");
         }
         if(result==res1 && (result<=curMin || curMin==-1))
         {
@@ -338,7 +342,7 @@ int costEqualY(int x1,int x2,int y,int *costs,int numRows,int numCols,int delta,
         result = min(result,min(res1,res2));
         if(y==46 && x1==46)
         {
-            printf("This is not the right place\n");
+            //printf("This is not the right place\n");
         }
         if(result==res1 && (result<=curMin || curMin==-1))
         {
@@ -389,7 +393,7 @@ int checkAllHorizontal(int x1,int x2,int y1,int y2,int *costs,int numRows,int nu
         int rec = max(costPerLine(startX,i,startY,startY,costs,numRows,numCols),max(costPerLine(i,i,startY,endY,costs,numRows,numCols),costPerLine(i,endX,endY,endY,costs,numRows,numCols)));
         if(startY==46 && i==46)
         {
-            printf("This is not the right place please do not\n");
+            //printf("This is not the right place please do not\n");
         }
         if(rec<=curMin || curMin==-1)
         {
@@ -445,7 +449,7 @@ int checkAllVertical(int x1,int x2,int y1,int y2,int *costs, int numRows,int num
         int rec = max(costPerLine(startX,startX,startY,i,costs,numRows,numCols),max(costPerLine(startX,endX,i,i,costs,numRows,numCols),costPerLine(endX,endX,i,endY,costs,numRows,numCols)));
         if(startY==46 && startX==46)
         {
-            printf("Please not here\n");
+            //printf("Please not here\n");
         }
         if(rec<=curMin || curMin==-1)
         {
@@ -478,6 +482,7 @@ void mergeCost(int *aggCost,int *newCost,int numRows,int numCols)
     {
         for(size_t j = 0;j<numCols;j++)
         {
+            //printf("MERGE THOSE COSTS\n");
             aggCost[i * numCols + j]+=newCost[i * numCols + j];
         }
     }
@@ -508,12 +513,6 @@ void combineCostArrays(int procID,int *costs,int numRows,int numCols,int nproc)
     //The line above broadcasts the udpated cost array to each node
 }
 
-//The function below combines the wire arrays into
-//Actually, why can I not just report each wire from its own processor. Not sure how to ensure synch for the writes out to file though
-void combineWireArrays(int procID,wire_t *wireArray,int nproc,int nWirePerProc)
-{
-    return;
-}
 
 //TODO NEED TO WRITE FUNCTION THAT COMBINES COST ARRAYS FOR EACH NODE AT THE ROOT NODE
 //NODES WILL BROADCAST THEIR COST ARRAYS AFTER EACH ITERATION TO BEGIN WITH
@@ -525,10 +524,22 @@ void compute(int procID, int nproc, char* inputFilename, double prob, int numIte
     int numCols;
     int delta;
     int wiresPerProc;
+    int numWires;
     int curCostWireH;
     int curCostWireV;
-    wire_t *wires = readInput(inputFilename,procID,nproc,&numRows,&numCols,&delta,&wiresPerProc);
-    int *costs = init(numRows,numCols);
+
+    MPI_Datatype wireMPI;
+    MPI_Type_contiguous(8,MPI_INT,&wireMPI);
+    MPI_Type_commit(&wireMPI);
+
+    wire_t *wireArray = NULL;
+    if(procID==root)
+    {
+        wireArray = readInput(inputFilename,procID,nproc,&numRows,&numCols,&delta,&wiresPerProc,&numWires);
+    }
+    wire_t *wireSubArray = calloc(wiresPerProc,sizeof(wire_t));
+    MPI_Scatter(wireArray,wiresPerProc,wireMPI,wireSubArray,wiresPerProc,wireMPI,root,MPI_COMM_WORLD);  //Root sends data to other nodes using scatter
+    init(numRows,numCols);
     //TODO Implement code here
     //TODO Decide which processors should be reading/writing files
 
@@ -540,16 +551,16 @@ void compute(int procID, int nproc, char* inputFilename, double prob, int numIte
             continue;
         }
         //Search time
-        for(int i = (procID * wiresPerProc);i<wiresPerProc;i++)
+        for(int i = 0;i<wiresPerProc;i++)
         {
-            int x1 = wires[i].x1;
-            int y1 = wires[i].y1;
-            int x2 = wires[i].x2;
-            int y2 = wires[i].y2;
-            int b1x = wires[i].b1x;
-            int b1y = wires[i].b1y;
-            int b2x = wires[i].b2x;
-            int b2y = wires[i].b2y;
+            int x1 = wireSubArray[i].x1;
+            int y1 = wireSubArray[i].y1;
+            int x2 = wireSubArray[i].x2;
+            int y2 = wireSubArray[i].y2;
+            int b1x = wireSubArray[i].b1x;
+            int b1y = wireSubArray[i].b1y;
+            int b2x = wireSubArray[i].b2x;
+            int b2y = wireSubArray[i].b2y;
             int curMin = 0;
             if(x1==x2 || y1==y2)  //Points in a straight line
             {
@@ -614,13 +625,13 @@ void compute(int procID, int nproc, char* inputFilename, double prob, int numIte
                 curMin = min(curCostWireH,curCostWireV);
                 if(curMin==curCostWireH)
                 {
-                    wires[i] = H;
+                    wireSubArray[i] = H;
                     placeWire(&H,costs,numRows,numCols);
                 }
                 else
                 {
                     assert(curMin==curCostWireV);
-                    wires[i] = V;
+                    wireSubArray[i] = V;
                     placeWire(&V,costs,numRows,numCols);
                 }
             }
@@ -630,19 +641,22 @@ void compute(int procID, int nproc, char* inputFilename, double prob, int numIte
     }
     //TODO NEED TO MERGE WIRE ARRAYS SO THAT THE ROOT CAN WRITE TO OUTPUT
     //COMBINEWIREARRAY
+    MPI_Gather(wireSubArray,wiresPerProc,wireMPI,wireArray,wiresPerProc,wireMPI,root,MPI_COMM_WORLD);
 
-    writeCost(inputFilename, nproc,numRows,numCols,procID);
-    writeOutput(inputFilename, nproc,numRows,numCols,delta,wiresPerProc,wires);
+    if(procID==root)  //Root has the cost and wire array so it writes out
+    {
+        writeCost(inputFilename, nproc,numRows,numCols);
+        writeOutput(inputFilename, nproc,numRows,numCols,delta,wiresPerProc,wireArray);
+    }
 }
 
 // Read input file
-wire_t *readInput(char* inputFilename,int procID,int nProcs,int *numRows,int *numCols,int *delta,int *wiresPerProc)
+wire_t *readInput(char* inputFilename,int procID,int nProcs,int *numRows,int *numCols,int *delta,int *wiresPerProc,int *numWires)
 {
     FILE* fp = fopen(inputFilename, "r");
     //int numRows;
     //int numCols;
     //int delta;
-    int numWires;
     int x1;
     int y1;
     int x2;
@@ -663,7 +677,7 @@ wire_t *readInput(char* inputFilename,int procID,int nProcs,int *numRows,int *nu
         fprintf(stderr, "Invalid input file format\n");
         exit(-1);
     }
-    if (fscanf(fp, "%d", &numWires) != 1) {
+    if (fscanf(fp, "%d", numWires) != 1) {
         fprintf(stderr, "Invalid input file format\n");
         exit(-1);
     }
@@ -672,53 +686,59 @@ wire_t *readInput(char* inputFilename,int procID,int nProcs,int *numRows,int *nu
         exit(-1);
     }
     //init(*numRows, *numCols, *delta, numWires,procID);
-    *wiresPerProc = (numWires + nProcs - 1)/nProcs;
-    wire_t *wireArray = calloc(*wiresPerProc,sizeof(wire_t));
-    for(int wireIndex = (procID * (*wiresPerProc)); wireIndex<(*wiresPerProc);wireIndex++)
+    
+    //int *globalWires = calloc(numWires,sizeof(wire_t));
+    //Global array that contains all wires, will contain mergered wires at root
+
+    //The above code creates a wire struct type for MPI
+
+    *wiresPerProc = (*numWires + nProcs - 1)/nProcs;
+    wire_t *wireArray = calloc(*numWires,sizeof(wire_t));
+    for(int i = 0;i<(*numWires);i++)
     {
         if(fscanf(fp,"%d %d %d %d",&x1,&y1,&x2,&y2)!=4)
         {
             fprintf(stderr,"Invalid input file format\n");
             exit(-1);
         }
-        initWire(wireIndex,x1,y1,x2,y2,wireArray);
+        initWire(i,x1,y1,x2,y2,wireArray);
     }
+    //wire_t *wireSubArray = calloc(*wiresPerProc,sizeof(wire_t));
+    //MPI_Scatter(wireArray,*wiresPerProc,wireMPI,wireSubArray,*wiresPerProc,wireMPI,root,MPI_COMM_WORLD);
     fclose(fp);
     return wireArray;
 }
 
 // Write cost array file based on input filename
-void writeCost(char* inputFilename, int nproc,int numRows,int numCols,int procID)
+void writeCost(char* inputFilename, int nproc,int numRows,int numCols)
 {
-    if(procID==root)  //Only want root to write out to file
-    {
-        char* dname = strdup(inputFilename);
-        char* bname = strdup(inputFilename);
-        char* costsFilename = malloc(strlen(inputFilename) + 100);
-        FILE* fp;
-        //int numRows = getNumRows();
-        //int numCols = getNumCols();
-        int row;
-        int col;
-        assert(costsFilename != NULL);
-        sprintf(costsFilename, "%s/costs_%s_%d.txt", dirname(dname), basename(bname), nproc);
-        fp = fopen(costsFilename, "w");
-        if (fp == NULL) {
-            fprintf(stderr, "Failed to write costs file %s\n", costsFilename);
-            exit(-1);
-        }
-        fprintf(fp, "%d %d\n", numCols, numRows);
-        for (row = 0; row < numRows; row++) {
-            for (col = 0; col < numCols; col++) {
-                fprintf(fp, "%d ", getCost(row, col));
-            }
-            fprintf(fp, "\n");
-        }
-        fclose(fp);
-        free(costsFilename);
-        free(bname);
-        free(dname); 
+    //Only need root to do this
+    char* dname = strdup(inputFilename);
+    char* bname = strdup(inputFilename);
+    char* costsFilename = malloc(strlen(inputFilename) + 100);
+    FILE* fp;
+    //int numRows = getNumRows();
+    //int numCols = getNumCols();
+    int row;
+    int col;
+    assert(costsFilename != NULL);
+    sprintf(costsFilename, "%s/costs_%s_%d.txt", dirname(dname), basename(bname), nproc);
+    fp = fopen(costsFilename, "w");
+    if (fp == NULL) {
+        fprintf(stderr, "Failed to write costs file %s\n", costsFilename);
+        exit(-1);
     }
+    fprintf(fp, "%d %d\n", numCols, numRows);
+    for (row = 0; row < numRows; row++) {
+        for (col = 0; col < numCols; col++) {
+            fprintf(fp, "%d ", getCost(row, col,numCols));
+        }
+        fprintf(fp, "\n");
+    }
+    fclose(fp);
+    free(costsFilename);
+    free(bname);
+    free(dname);
 }
 
 // Write wire output file based on input filename
