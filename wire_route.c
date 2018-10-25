@@ -116,6 +116,9 @@ void placeWire(wire_t *wire,int *costs,int numRows,int numCols){
     int b1y = wire->b1y;
     int b2x = wire->b2x;
     int b2y = wire->b2y;
+    int rank;
+    
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 
     if(b1x!=undef && b1y!=undef)
     {
@@ -185,6 +188,66 @@ void placeWire(wire_t *wire,int *costs,int numRows,int numCols){
     }
 }
 
+void removeWire(wire_t* wire, int *costs,int numRows,int numCols) {
+    int x1 = wire->x1;
+    int y1 = wire->y1;
+    int x2 = wire->x2;
+    int y2 = wire->y2;
+    int b1x = wire->b1x;
+    int b1y = wire->b1y;
+    int b2x = wire->b2x;
+    int b2y = wire->b2y;
+
+    if((x1==x2 || y1==y2) && (b1x == undef && b1y == undef)) {//Points in a straight line
+        assert(b2x == undef && b2y == undef);
+        if(x1==x2) {
+            removeEqualXWire(x1,y2,y2,costs,numRows,numCols,undef);
+        }
+        else {
+            assert(y1==y2);
+            removeEqualYWire(x1,x2,y1,costs,numRows,numCols,undef);
+        }
+    }
+    else  //TODO DEAL WITH BENDS NOW
+    {
+        if(x1==b1x)
+        {
+            removeEqualXWire(x1,y1,b1y,costs,numRows,numCols,undef);
+        }
+        else if(y1==b1y)
+        {
+            removeEqualYWire(x1,b1x,y1,costs,numRows,numCols,undef);
+        }
+        if(b2x!=undef && b2y!=undef)
+        {
+            if(b1x==b2x)
+            {
+                removeEqualXWire(b1x,b1y,b2y,costs,numRows,numCols,b1y);
+            }
+            else if(b1y==b2y)
+            {
+                removeEqualYWire(b1x,b2x,b1y,costs,numRows,numCols,b1x);
+            }
+            if(b2x==x2)
+            {
+                removeEqualXWire(b2x,b2y,y2,costs,numRows,numCols,b2y);
+            }
+            else if(b2y==y2)
+            {
+                removeEqualYWire(b2x,x2,y2,costs,numRows,numCols,b2x);
+            }
+        }
+        else if(b1x==x2)
+        {
+            removeEqualXWire(x2,b1y,y2,costs,numRows,numCols,b1y);
+        }
+        else if(b1y==y2)
+        {
+            removeEqualYWire(b1x,x2,y2,costs,numRows,numCols,b1x);
+        }
+    }
+}
+
 int costPerLine(int x1,int x2, int y1, int y2,int *costs,int numRows,int numCols){
     int result = 0;
     if(x1==x2)
@@ -218,13 +281,14 @@ int costPerLine(int x1,int x2, int y1, int y2,int *costs,int numRows,int numCols
 }
 
 int costEqualX(int x,int y1,int y2,int *costs,int numRows,int numCols,int delta,wire_t *wire){
+    assert(y1 != y2);
     int result = 0;
     int start = min(y1,y2);
     int end = max(y1,y2);
     result = costPerLine(x,x,y1,y2,costs,numRows,numCols);
     wire_t w = {x,y1,x,y2,undef,undef,undef,undef};
     *wire = w;
-    if(y1==y2 || delta==0)
+    if(delta==0)
     {
         return result;
     }
@@ -246,13 +310,13 @@ int costEqualX(int x,int y1,int y2,int *costs,int numRows,int numCols,int delta,
         
         if(result==res1 && (result<=curMin || curMin==-1))
         {
-            wire_t w = {x,y1,x,y2,x+i,y1,x+i,y2};
+            wire_t w = {x,start,x,end,x+i,start,x+i,end};
             *wire = w;
             curMin = res1;
         }
         else if(result==res2 && (result<=curMin || curMin==-1))
         {
-            wire_t w = {x,y1,x,y2,x-i,y1,x-i,y2};
+            wire_t w = {x,start,x,end,x-i,start,x-i,end};
             *wire = w;
             curMin = res2;
         }
@@ -265,13 +329,14 @@ int costEqualX(int x,int y1,int y2,int *costs,int numRows,int numCols,int delta,
 }
 
 int costEqualY(int x1,int x2,int y,int *costs,int numRows,int numCols,int delta,wire_t *wire){
+    assert(x1 != x2);
     int result = 0;
     int start = min(x1,x2);
     int end = max(x1,x2);
     result = costPerLine(x1,x2,y,y,costs,numRows,numCols);
     wire_t w = {x1,y,x2,y,undef,undef,undef,undef};
     *wire = w;
-    if(x1==x2 || delta==0)
+    if(delta==0)
     {
         return result;
     }
@@ -293,13 +358,13 @@ int costEqualY(int x1,int x2,int y,int *costs,int numRows,int numCols,int delta,
         
         if(result==res1 && (result<=curMin || curMin==-1))
         {
-            wire_t w = {x1,y,x2,y,x1,y+i,x2,y+i};
+            wire_t w = {start,y,end,y,start,y+i,end,y+i};
             *wire = w;
             curMin = res1;
         }
         else if(result==res2 && (result<=curMin || curMin==-1))
         {
-            wire_t w = {x1,y,x2,y,x1,y-i,x2,y-i};
+            wire_t w = {start,y,end,y,start,y-i,end,y-i};
             *wire = w;
             curMin = res2;
         }
@@ -415,121 +480,82 @@ int checkAllVertical(int x1,int x2,int y1,int y2,int *costs, int numRows,int num
     }
     return curMin;
 }
-//defining a new type: the type MPI_User_function is a type for pointer to functions reciving two void*, one int* and one MPI_Database*
-typedef void (MPI_User_function)( void *invec, void *inoutvec, int *len, 
-                                                MPI_Datatype *datatype);
 
-void mergeCost(void *invec, void *inoutvec, int* len, MPI_Datatype* datatype){
+/*void mergeCost(void *invec, void *inoutvec, int* len, MPI_Datatype* datatype) {
     int* aggCost = (int*) invec;
     int* newCost = (int*) inoutvec;
-    for(size_t i = 0; i< *len; i++)
+    int l = *len;
+    for(size_t i = 0; i < l; i++)
     {
-           *(aggCost + i) += *(newCost + i);
+           aggCost[i] += newCost[i];
     }
-    //This seqential and is super slow
-}
+}*/
 
-//The function below will be called after each iteration. All non root nodes will send cost array to root node who will consolidate arrays into one.
-
-void compute_aux (wire_t* wireSubArray, int wiresPerProc, int numRows, int numCols, int delta, double prob) {
+void compute_aux (wire_t* a, int wiresPerProc, int numRows, int numCols, int delta, double prob, int iter) {
     double probVal = ((double) rand() / (RAND_MAX));
     int curCostWireH = 0;
     int curCostWireV = 0;
     if(probVal > 1-prob) return;
         //Search time
-        for(int i = 0;i<wiresPerProc;i++)
-        {
-            int x1 = wireSubArray[i].x1;
-            int y1 = wireSubArray[i].y1;
-            int x2 = wireSubArray[i].x2;
-            int y2 = wireSubArray[i].y2;
-            int b1x = wireSubArray[i].b1x;
-            int b1y = wireSubArray[i].b1y;
-            int b2x = wireSubArray[i].b2x;
-            int b2y = wireSubArray[i].b2y;
-            int curMin = 0;
-            if(x1==x2 || y1==y2)  //Points in a straight line
-            {
-                if(x1==x2)
-                {
-                    removeEqualXWire(x1,y2,y2,costs,numRows,numCols,undef);
-                    wire_t EqX = {x1,y1,x2,y2,undef,undef,undef,undef};
-                    curCostWireH = costEqualX(x1,y1,y2,costs,numRows,numCols,delta,&EqX);
-                    placeWire(&EqX,costs,numRows,numCols);
-                }
-                else
-                {
-                    assert(y1==y2);
-                    removeEqualYWire(x1,x2,y1,costs,numRows,numCols,undef);
-                    wire_t EqY = {x1,y1,x2,y2,undef,undef,undef,undef};
-                    curCostWireV = costEqualY(x1,x2,y1,costs,numRows,numCols,delta,&EqY);
-                    placeWire(&EqY,costs,numRows,numCols);
-                }
-            }
-            else  //TODO DEAL WITH BENDS NOW
-            {
-                if(x1==b1x)
-                {
-                    removeEqualXWire(x1,y1,b1y,costs,numRows,numCols,undef);
-                }
-                else if(y1==b1y)
-                {
-                    removeEqualYWire(x1,b1x,y1,costs,numRows,numCols,undef);
-                }
-                if(b2x!=undef && b2y!=undef)
-                {
-                    if(b1x==b2x)
-                    {
-                        removeEqualXWire(b1x,b1y,b2y,costs,numRows,numCols,b1y);
-                    }
-                    else if(b1y==b2y)
-                    {
-                        removeEqualYWire(b1x,b2x,b1y,costs,numRows,numCols,b1x);
-                    }
-                    if(b2x==x2)
-                    {
-                        removeEqualXWire(b2x,b2y,y2,costs,numRows,numCols,b2y);
-                    }
-                    else if(b2y==y2)
-                    {
-                        removeEqualYWire(b2x,x2,y2,costs,numRows,numCols,b2x);
-                    }
-                }
-                else if(b1x==x2)
-                {
-                    removeEqualXWire(x2,b1y,y2,costs,numRows,numCols,b1y);
-                }
-                else if(b1y==y2)
-                {
-                    removeEqualYWire(b1x,x2,y2,costs,numRows,numCols,b1x);
-                }
-                wire_t H = {x1,y1,x2,y2,undef,undef,undef,undef};
-                wire_t V = {x1,y1,x2,y2,undef,undef,undef,undef};
+    for(int i = 0; i < wiresPerProc;i++) {
+        int x1 = a[i].x1; 
+        int y1 = a[i].y1;
+        int x2 = a[i].x2;
+        int y2 = a[i].y2;
+        int b1x = a[i].b1x;
+        int b1y = a[i].b1y;
+        int b2x = a[i].b2x;
+        int b2y = a[i].b2y;
+        int curMin = 0;
 
-                curCostWireH = checkAllHorizontal(x1,x2,y1,y2,costs,numRows,numCols,delta,&H);
-                curCostWireV = checkAllVertical(x1,x2,y1,y2,costs,numRows,numCols,delta,&V);
-                curMin = min(curCostWireH,curCostWireV);
-                if(curMin==curCostWireH)
-                {
-                    wireSubArray[i] = H;
-                    placeWire(&H,costs,numRows,numCols);
-                }
-                else
-                {
-                    assert(curMin==curCostWireV);
-                    wireSubArray[i] = V;
-                    placeWire(&V,costs,numRows,numCols);
-                }
+        if(iter) removeWire(&a[i], costs, numRows, numCols);
+
+        if((x1==x2 || y1==y2) && (b1x == undef && b1y == undef)) {//Points in a straight line
+            
+            assert(b2x == undef && b2y == undef);
+            if(x1==x2) {
+                wire_t EqX = {x1,y1,x2,y2,undef,undef,undef,undef};
+                curCostWireH = costEqualX(x1,y1,y2,costs,numRows,numCols,delta,&EqX);
+                a[i] = EqX;
+                placeWire(&EqX,costs,numRows,numCols);
             }
+            else {
+                assert(y1==y2);
+                wire_t EqY = {x1,y1,x2,y2,undef,undef,undef,undef};
+                curCostWireV = costEqualY(x1,x2,y1,costs,numRows,numCols,delta,&EqY);
+                a[i] = EqY;
+                placeWire(&EqY,costs,numRows,numCols);
+            }
+            continue;
         }
+            
+        wire_t H = {x1,y1,x2,y2,undef,undef,undef,undef};
+        wire_t V = {x1,y1,x2,y2,undef,undef,undef,undef};
+
+        curCostWireH = checkAllHorizontal(x1,x2,y1,y2,costs,numRows,numCols,delta,&H);
+        curCostWireV = checkAllVertical(x1,x2,y1,y2,costs,numRows,numCols,delta,&V);
+        curMin = min(curCostWireH,curCostWireV);
+        if(curMin==curCostWireH) {
+            a[i] = H;
+            placeWire(&H,costs,numRows,numCols);
+        }
+        else
+        {
+            assert(curMin==curCostWireV);
+            a[i] = V;
+            placeWire(&V,costs,numRows,numCols);
+        }
+    }
 }
 
 //TODO NEED TO WRITE FUNCTION THAT COMBINES COST ARRAYS FOR EACH NODE AT THE ROOT NODE
 //NODES WILL BROADCAST THEIR COST ARRAYS AFTER EACH ITERATION TO BEGIN WITH
 
+//defining a new type: the type MPI_User_function is a type for pointer to functions reciving two void*, one int* and one MPI_Database*
+//typedef void (MPI_User_function)( void *invec, void *inoutvec, int *len, MPI_Datatype *datatype);
+
 // Perform computation, including reading/writing output files
-void compute(int procID, int nproc, char* inputFilename, double prob, int numIterations)
-{
+void compute(int procID, int nproc, char* inputFilename, double prob, int numIterations) {
     int numRows = 0;
     int numCols = 0;
     int delta = 0;
@@ -541,13 +567,13 @@ void compute(int procID, int nproc, char* inputFilename, double prob, int numIte
     MPI_Type_commit(&wireMPI);
 
     /* create a + operator over array in MPI */
-    MPI_Op array_addition_operator; 
-    MPI_Op_create(mergeCost, 1, &array_addition_operator); 
+    // MPI_Op array_addition_operator; 
+    // MPI_Op_create(mergeCost, 1, &array_addition_operator); 
 
 
     wire_t *wireArray = NULL;
     
-    if(procID==root)
+    if(procID==root) 
         wireArray = readInput(inputFilename,procID,nproc,&numRows,&numCols,&delta,&numWires);
 
     MPI_Barrier(MPI_COMM_WORLD);
@@ -598,29 +624,32 @@ void compute(int procID, int nproc, char* inputFilename, double prob, int numIte
     costs = calloc(numRows*numCols, sizeof(int));   
     //TODO Implement code here
     //TODO Decide which processors should be reading/writing files
+
     for(int iter = 0; iter<numIterations; iter++)
     {
-        compute_aux (wireSubArray, wiresPerProc, numRows, numCols, delta, prob);
-        int* temp = malloc (len * sizeof(int));
-        memcpy(temp, costs, len * sizeof(int));
-        MPI_Barrier(MPI_COMM_WORLD);
-        MPI_Allreduce(temp, costs, len, MPI_INT, array_addition_operator, MPI_COMM_WORLD);
-        free(temp);
+        compute_aux (wireSubArray, wiresPerProc, numRows, numCols, delta, prob, iter);
     }
+    MPI_Barrier(MPI_COMM_WORLD);
+    int* finalCost = malloc (len * sizeof(int));
+    memcpy(finalCost, costs, len * sizeof(int));
+    MPI_Allreduce(finalCost, costs, len, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
+    free(finalCost);
     //TODO NEED TO MERGE WIRE ARRAYS SO THAT THE ROOT CAN WRITE TO OUTPUT
     //COMBINEWIREARRAY
-    MPI_Gatherv(wireSubArray,sendcounts[procID],wireMPI,wireArray,sendcounts, displs, wireMPI, root, MPI_COMM_WORLD);
+    MPI_Gatherv(wireSubArray,wiresPerProc,wireMPI,wireArray,sendcounts, displs, wireMPI, root, MPI_COMM_WORLD);
+    free(displs);
+    free(wireSubArray);
+    free(sendcounts);
 
     if(procID==root)  //Root has the cost and wire array so it writes out
     {
         writeCost(inputFilename, nproc,numRows,numCols);
-        writeOutput(inputFilename, nproc,numRows,numCols,delta,wiresPerProc,wireArray);
+        writeOutput(inputFilename, nproc,numRows,numCols,delta,numWires,wireArray);
     }
 }
 
 // Read input file
-wire_t *readInput(char* inputFilename,int procID,int nProcs,int *numRows,int *numCols,int *delta,int *numWires)
-{
+wire_t *readInput(char* inputFilename,int procID,int nProcs,int *numRows,int *numCols,int *delta,int *numWires) {
     FILE* fp = fopen(inputFilename, "r");
     //int numRows;
     //int numCols;
@@ -677,8 +706,7 @@ wire_t *readInput(char* inputFilename,int procID,int nProcs,int *numRows,int *nu
 }
 
 // Write cost array file based on input filename
-void writeCost(char* inputFilename, int nproc,int numRows,int numCols)
-{
+void writeCost(char* inputFilename, int nproc,int numRows,int numCols) {
     //Only need root to do this
     char* dname = strdup(inputFilename);
     char* bname = strdup(inputFilename);
@@ -698,10 +726,24 @@ void writeCost(char* inputFilename, int nproc,int numRows,int numCols)
     fprintf(fp, "%d %d\n", numCols, numRows);
     for (row = 0; row < numRows; row++) {
         for (col = 0; col < numCols; col++) {
-            fprintf(fp, "%d ", getCost(row, col,numCols));
+            fprintf(fp, "%d ", getCost(row, col, numCols));
         }
         fprintf(fp, "\n");
     }
+    int Max = -1;
+    int Sum = 0;
+    for(row = 0;row<numRows;row++)
+    {
+        for(col = 0;numCols;col++)
+        {
+            if(getCost(row,col,numCols)>Max)
+            Max = getCost(row,col,numCols);
+            Sum+=getCost(row,col,numCols);
+        }
+    }
+
+    printf("MAX: %d\n",Max);
+    printf("SUM: %d\n",Sum);
     fclose(fp);
     free(costsFilename);
     free(bname);
@@ -709,9 +751,7 @@ void writeCost(char* inputFilename, int nproc,int numRows,int numCols)
 }
 
 // Write wire output file based on input filename
-void writeOutput(char* inputFilename, int nproc,int numRows,int numCols,int delta,int numWires,
-        wire_t *wireArray)
-{
+void writeOutput(char* inputFilename, int nproc,int numRows,int numCols,int delta,int numWires, wire_t *wireArray) {
     char* dname = strdup(inputFilename);
     char* bname = strdup(inputFilename);
     char* outputFilename = malloc(strlen(inputFilename) + 100);
